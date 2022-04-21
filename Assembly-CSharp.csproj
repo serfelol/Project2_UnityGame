@@ -36,9 +36,12 @@
     <ImplicitlyExpandDesignTimeFacades>false</ImplicitlyExpandDesignTimeFacades>
   </PropertyGroup>
   <ItemGroup>
+     <Compile Include="Assets\Scripts\LineMaker.cs" />
      <Compile Include="Assets\Scripts\BallMovement.cs" />
      <Compile Include="Assets\Scripts\Utils\ScreenUtils.cs" />
      <Compile Include="Assets\Scripts\Borders.cs" />
+     <Compile Include="Assets\Scripts\LineInputValues.cs" />
+     <Compile Include="Assets\Scripts\Utils\MathFormulas.cs" />
     <Reference Include="UnityEngine">
         <HintPath>C:\Program Files\Unity\Hub\Editor\2020.3.19f1\Editor\Data\Managed\UnityEngine\UnityEngine.dll</HintPath>
     </Reference>
