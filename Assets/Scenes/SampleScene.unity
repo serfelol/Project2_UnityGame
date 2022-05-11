@@ -292,30 +292,24 @@ LineRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Positions: []
+  m_Positions:
+  - {x: -10, y: 0, z: 0}
+  - {x: 0, y: 0, z: 0}
+  - {x: 10, y: 0, z: 0}
   m_Parameters:
     serializedVersion: 3
-    widthMultiplier: 0.4
+    widthMultiplier: 1
     widthCurve:
       serializedVersion: 2
       m_Curve:
       - serializedVersion: 3
-        time: 0
-        value: 1
+        time: 0.0001
+        value: 0.5
         inSlope: 0
         outSlope: 0
         tangentMode: 0
         weightedMode: 0
-        inWeight: 0.33333334
-        outWeight: 0.33333334
-      - serializedVersion: 3
-        time: 0.66981137
-        value: 0.17442037
-        inSlope: -3.3454862
-        outSlope: -3.3454862
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0.066037774
+        inWeight: 0
         outWeight: 0
       m_PreInfinity: 2
       m_PostInfinity: 2
@@ -369,18 +363,32 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c5c0d991966be243bf0a24e9ba0813f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  animCurve:
+  curveWidthKeys_updated:
     serializedVersion: 2
-    m_Curve: []
+    m_Curve:
+    - serializedVersion: 3
+      time: -0.10499008
+      value: 0.387337
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1.068706
+      value: 0.38338107
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  animCurveVelocity:
-    serializedVersion: 2
-    m_Curve: []
-    m_PreInfinity: 2
-    m_PostInfinity: 2
-    m_RotationOrder: 4
+  LastKeyPointVelocity: 0
+  currentLineVelocity: 0
   pointMinDistanceToAddLine: 0.5
 --- !u!4 &1896156464
 Transform:
