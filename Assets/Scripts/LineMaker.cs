@@ -1,24 +1,22 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using System.Linq;
 
 /// <summary>
-/// creates the lines based on points received;
+/// create a line based on points received;
 /// </summary>
 public class LineMaker : MonoBehaviour
 {
     #region fields
+    // line state
+    private bool isLineActive;
 
     //----------------line width-----------------------------
     [SerializeField] private AnimationCurve curveWidthKeys_updated;
     private AnimationCurve curveWidthKeys_original;
-    [SerializeField]private float LastKeyPointVelocity;
-    private List<float> timePassedSinceLastKeyAdded;
-    private float normalLineWidht = 0.4f;
-    [SerializeField] private float AC_WidthMargin = 0.02f;
-    private float LW_ByVelocityMin = 5.0f;
-    private float LW_ByVelocityMax = 10.0f;
+    private float normalLineWidht = 1;
+    private float LW_ByVelocityMin = 5.5f;
+    private float LW_ByVelocityMax = 28;
+    private float LW_Subdivisions = 10;
+    private int lastWidthSubdivision = -2;
 
     //----------------velocity calculation---------------------
     [SerializeField]private float currentLineVelocity;
@@ -33,6 +31,7 @@ public class LineMaker : MonoBehaviour
     //------------------curve creation-------------------------
     private LineRenderer lineRenderer;
     [SerializeField] private float pointMinDistanceToAddLine;
+
     #endregion
 
     private void Awake() {
@@ -43,17 +42,17 @@ public class LineMaker : MonoBehaviour
             lineRenderer.positionCount = 0;
         }
 
+        isLineActive = true;
+
         wasCurveCreated = false;
         curveWidthKeys_updated = new AnimationCurve();
         curveWidthKeys_original = new AnimationCurve();
-        timePassedSinceLastKeyAdded = new List<float>();
-        LastKeyPointVelocity = -5; // setting this for validation purpose in the first interaction.
         
     }
 
     private void Update() {
         // keep track of the time passed since line started to be created
-        if(wasCurveCreated)
+        if(wasCurveCreated && isLineActive)
             timePassedSinceCurveCreation += Time.deltaTime; 
         
         //UpdateForDebug();
@@ -81,12 +80,16 @@ public class LineMaker : MonoBehaviour
             if(distance >= pointMinDistanceToAddLine){
                 UpdateCurveDistance(point);
                 AddPointToTheLineRenderer(point);
-                SetCurveWidth();
-                UpdateCurveWidth();
+                CalculateLineDrawingSpeed();
+                CheckVelocityLimit();
+                if(isLineActive){
+                    CheckChangeInWidth();
+                    UpdateCurveWidth();
 
-                // save last point info for reference
-                lastPointPosition = point;
-                lastPointTime = timePassedSinceCurveCreation;
+                    // save last point info for reference
+                    lastPointPosition = point;
+                    lastPointTime = timePassedSinceCurveCreation;
+                }
             }
         }
     }
@@ -98,6 +101,7 @@ public class LineMaker : MonoBehaviour
         lineRenderer.positionCount += 1;
         lineRenderer.SetPosition(lineRenderer.positionCount -1, point);
     }
+    
     private void UpdateCurveDistance(Vector2 point){
         var distance = MathFormulas.DistanceBetweenTwoPoints(point.x, point.y, lastPointPosition.x, lastPointPosition.y);
         curvedistance += distance;
@@ -107,31 +111,57 @@ public class LineMaker : MonoBehaviour
     /// Creates a new keyframe that represent a change in the curve width having as reference the velocity.
     /// The Animation Curve holding this keyframes is 'VelocityCurveChanges_keys'.
     /// </summary>
-    private void SetCurveWidth(){
-
+    private void CheckChangeInWidth(){
+        Debug.Log("called");
         float keyPointWidth;
         float interpolatValue;
         Keyframe key;
+        int currentWidthSubdivision = -3;
 
-        // get the current velocity
-        CalculateLineDrawingSpeed();
-
-        // calculate the line width by the velocity interpolation
+        #region width calculation
+        // calculate the interpolation between the line width and velocity 
         interpolatValue = Mathf.InverseLerp(LW_ByVelocityMin, LW_ByVelocityMax, currentLineVelocity);
-        keyPointWidth = Mathf.Lerp(normalLineWidht, 0, interpolatValue);
+        // calculate range for each subdivision
+        float rangeBetweenSubdivions = 1 / LW_Subdivisions;
+        // set the interpolation values to the subdivision value
+        if (interpolatValue == 0)
+            currentWidthSubdivision = 0;
+        else if (interpolatValue == 1)
+            currentWidthSubdivision = -1;
+        else if(interpolatValue > 0 && interpolatValue < 1)
+        {
+            for (int i = 0; i < LW_Subdivisions; i++)
+            {
+                if (interpolatValue < rangeBetweenSubdivions + i * rangeBetweenSubdivions)
+                {
+                    interpolatValue = i * rangeBetweenSubdivions;
+                    currentWidthSubdivision = i;
+                    break;
+                }
+            }
+        }
+        #endregion
 
-        // register the key that represents the beginning of the curve
-        if(curveWidthKeys_original.length == 0){
-            key  = new Keyframe(0.0f, keyPointWidth);
+        if (currentWidthSubdivision == -3)
+        {
+            Debug.Log("Error on this line, 'currentWidthSubdivision' not supposed to be -3");
+            return;
+        }
+        // No need to register two consecutive keys with the same value
+        else if(lastWidthSubdivision != currentWidthSubdivision)
+        {
+            Debug.Log("Current velocity: " + currentLineVelocity + ", Interpolate Value: " + interpolatValue);
+            keyPointWidth = Mathf.Lerp(normalLineWidht, 0, interpolatValue);
+
+            // register the new keypoint
+            float curveDistanceWithMargin = curvedistance * 0.999f; // This way the keyframe is always before the point.
+            key = new Keyframe(curveDistanceWithMargin, keyPointWidth);
+            key.weightedMode = WeightedMode.In;
+            key.inTangent = Mathf.Infinity;
             curveWidthKeys_original.AddKey(key);
         }
-        
-        // register the new keypoint
-        key = new Keyframe(curvedistance, keyPointWidth);
-        curveWidthKeys_original.AddKey(key);
-
-        // updates the LastKeyVelocity reference            
-        LastKeyPointVelocity = currentLineVelocity; 
+         
+        lastWidthSubdivision = currentWidthSubdivision;
     }
     
     /// <summary>
@@ -139,7 +169,7 @@ public class LineMaker : MonoBehaviour
     /// </summary>
     private void CalculateLineDrawingSpeed(){
         // need the current placed point position and time.
-        float currentPointTime = Time.time;
+        float currentPointTime = timePassedSinceCurveCreation;
         Vector2 currentPointPosition = lineRenderer.GetPosition(lineRenderer.positionCount - 1);
         // calculate the time that has passed
         float passedTime = currentPointTime - lastPointTime;
@@ -154,36 +184,31 @@ public class LineMaker : MonoBehaviour
     private void UpdateCurveWidth(){
         // list that will be filled with the new values for the keys
         curveWidthKeys_updated = new AnimationCurve();
+        int length = curveWidthKeys_original.length;
 
         // populate the list with the updated values
-        for(int i = 0; i < curveWidthKeys_original.length; i++){
+        for(int i = 0; i < length; i++){
             // interpolates the distance for values between 0 and 1
             float keyframedistance = curveWidthKeys_original[i].time / curvedistance;
 
             Keyframe key = curveWidthKeys_original[i];
             key.time = keyframedistance;
-            key.weightedMode = WeightedMode.None;
             curveWidthKeys_updated.AddKey(key);
-        }
-
-        // clear keyframes without relevance for the AC
-        // keys between keys with similar width are removed
-        if(curveWidthKeys_updated.length >= 3){
-            bool condition1 = Mathf.Abs(curveWidthKeys_updated[curveWidthKeys_updated.length - 1].value - curveWidthKeys_updated[curveWidthKeys_updated.length - 2].value) < AC_WidthMargin;
-            if(condition1){
-                bool condition2 = Mathf.Abs(curveWidthKeys_updated[curveWidthKeys_updated.length - 1].value - curveWidthKeys_updated[curveWidthKeys_updated.length - 3].value) < AC_WidthMargin;
-                if(condition2){
-                    var positionToRemove = curveWidthKeys_updated.length - 2;
-                    curveWidthKeys_updated.RemoveKey(positionToRemove);
-                    curveWidthKeys_original.RemoveKey(positionToRemove);
-                }
-            }
         }
         
         // assigning the calculated values to the LR component
         lineRenderer.widthCurve = curveWidthKeys_updated;
     }
-    private void UpdateForDebug(){
-        lineRenderer.widthCurve = curveWidthKeys_updated;
+    
+    private void CheckVelocityLimit(){
+        if(currentLineVelocity > LW_ByVelocityMax){
+            LineController.GetInstance().SetLineState = false;
+            DestroyLine();
+        } 
+    }
+    
+    public void DestroyLine(){
+        isLineActive = false;
+        Destroy(this.gameObject);
     }
 }
